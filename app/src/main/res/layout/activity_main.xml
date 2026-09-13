@@ -63,7 +63,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Женский"
-                android:layout_marginStart="20dp" />
+                android:layout_marginStart="25dp" />
 
         </RadioGroup>
 
@@ -81,7 +81,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="15dp" />
 
-        <!-- Уровень сложности -->
+        <!-- Сложность -->
 
         <TextView
             android:layout_width="wrap_content"
@@ -100,7 +100,8 @@
             android:id="@+id/textDifficulty"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Лёгкий"
+            android:text="Новичок"
+            android:textSize="16sp"
             android:gravity="center"
             android:layout_marginBottom="15dp" />
 
@@ -116,6 +117,22 @@
             android:id="@+id/calendarBirth"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/buttonSelectDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Выбрать дату"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/textSelectedDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Выбранная дата:"
+            android:textSize="16sp"
+            android:gravity="center"
             android:layout_marginBottom="15dp" />
 
         <!-- Знак зодиака -->
@@ -129,14 +146,14 @@
 
         <ImageView
             android:id="@+id/imageZodiac"
-            android:layout_width="150dp"
-            android:layout_height="150dp"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
             android:layout_gravity="center"
             android:scaleType="fitCenter"
             android:contentDescription="Знак зодиака"
             android:layout_marginBottom="15dp" />
 
-        <!-- Кнопка регистрации -->
+        <!-- Регистрация -->
 
         <Button
             android:id="@+id/buttonRegister"
@@ -152,7 +169,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="17sp"
-            android:padding="10dp" />
+            android:padding="10dp"
+            android:layout_marginBottom="20dp" />
 
     </LinearLayout>
 
