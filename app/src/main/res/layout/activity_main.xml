@@ -1,5 +1,6 @@
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -9,25 +10,47 @@
         android:orientation="vertical"
         android:padding="20dp">
 
+        <!-- Заголовок -->
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Регистрация игрока"
             android:textSize="26sp"
             android:textStyle="bold"
-            android:gravity="center" />
+            android:gravity="center"
+            android:layout_marginBottom="20dp" />
+
+        <!-- ФИО -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ФИО:"
+            android:textSize="18sp" />
 
         <EditText
             android:id="@+id/editFullName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Введите ФИО" />
+            android:hint="Введите ФИО"
+            android:inputType="textPersonName"
+            android:layout_marginBottom="15dp" />
+
+        <!-- Пол -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Пол:"
+            android:textSize="18sp" />
 
         <RadioGroup
             android:id="@+id/radioGender"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:layout_marginBottom="15dp">
 
             <RadioButton
                 android:id="@+id/radioMale"
@@ -39,47 +62,97 @@
                 android:id="@+id/radioFemale"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Женский" />
+                android:text="Женский"
+                android:layout_marginStart="20dp" />
 
         </RadioGroup>
+
+        <!-- Курс -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Курс:"
+            android:textSize="18sp" />
 
         <Spinner
             android:id="@+id/spinnerCourse"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="15dp" />
+
+        <!-- Уровень сложности -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Уровень сложности:"
+            android:textSize="18sp" />
 
         <SeekBar
             android:id="@+id/seekDifficulty"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:max="4" />
+            android:max="4"
+            android:progress="0" />
 
         <TextView
             android:id="@+id/textDifficulty"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Лёгкий" />
+            android:text="Лёгкий"
+            android:gravity="center"
+            android:layout_marginBottom="15dp" />
+
+        <!-- Дата рождения -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Дата рождения:"
+            android:textSize="18sp" />
 
         <CalendarView
             android:id="@+id/calendarBirth"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="15dp" />
+
+        <!-- Знак зодиака -->
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Знак зодиака:"
+            android:textSize="18sp"
+            android:gravity="center" />
 
         <ImageView
             android:id="@+id/imageZodiac"
-            android:layout_width="160dp"
-            android:layout_height="160dp" />
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_gravity="center"
+            android:scaleType="fitCenter"
+            android:contentDescription="Знак зодиака"
+            android:layout_marginBottom="15dp" />
+
+        <!-- Кнопка регистрации -->
 
         <Button
             android:id="@+id/buttonRegister"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Зарегистрировать игрока" />
+            android:text="Зарегистрировать игрока"
+            android:layout_marginBottom="15dp" />
+
+        <!-- Результат -->
 
         <TextView
             android:id="@+id/textResult"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:textSize="17sp"
+            android:padding="10dp" />
 
     </LinearLayout>
 
