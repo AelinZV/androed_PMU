@@ -19,18 +19,13 @@ class AuthorsFragment : Fragment(R.layout.fragment_authors) {
         val authors = listOf(
 
             Author(
-                "Студент 1",
-                android.R.drawable.ic_menu_myplaces
+                "Михайлов Руслан",
+                R.drawable.ya
             ),
 
             Author(
-                "Студент 2",
-                android.R.drawable.ic_menu_myplaces
-            ),
-
-            Author(
-                "Студент 3",
-                android.R.drawable.ic_menu_myplaces
+                "Кормилицын Илья",
+                R.drawable.ilya
             )
         )
 
