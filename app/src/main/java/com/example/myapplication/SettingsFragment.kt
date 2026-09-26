@@ -15,47 +15,28 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         super.onViewCreated(view, savedInstanceState)
 
         val seekSpeed =
-            view.findViewById<SeekBar>(
-                R.id.seekSpeed
-            )
+            view.findViewById<SeekBar>(R.id.seekSpeed)
 
         val textSpeed =
-            view.findViewById<TextView>(
-                R.id.textSpeed
-            )
-
+            view.findViewById<TextView>(R.id.textSpeed)
 
         val seekCockroaches =
-            view.findViewById<SeekBar>(
-                R.id.seekCockroaches
-            )
+            view.findViewById<SeekBar>(R.id.seekCockroaches)
 
         val textCockroaches =
-            view.findViewById<TextView>(
-                R.id.textCockroaches
-            )
-
+            view.findViewById<TextView>(R.id.textCockroaches)
 
         val seekBonus =
-            view.findViewById<SeekBar>(
-                R.id.seekBonus
-            )
+            view.findViewById<SeekBar>(R.id.seekBonus)
 
         val textBonus =
-            view.findViewById<TextView>(
-                R.id.textBonus
-            )
-
+            view.findViewById<TextView>(R.id.textBonus)
 
         val seekRound =
-            view.findViewById<SeekBar>(
-                R.id.seekRound
-            )
+            view.findViewById<SeekBar>(R.id.seekRound)
 
         val textRound =
-            view.findViewById<TextView>(
-                R.id.textRound
-            )
+            view.findViewById<TextView>(R.id.textRound)
 
 
         // -----------------------------------------
@@ -64,10 +45,13 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         // -----------------------------------------
 
         seekSpeed.max = 9
-        seekSpeed.progress = 4
+
+        // Восстанавливаем сохранённое значение
+        seekSpeed.progress =
+            GameSettings.speed - 1
 
         textSpeed.text =
-            "Скорость игры: 5"
+            "Скорость игры: ${GameSettings.speed}"
 
         seekSpeed.setOnSeekBarChangeListener(
             object : SeekBar.OnSeekBarChangeListener {
@@ -80,6 +64,9 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
                     val speed =
                         progress + 1
+
+                    // Сохраняем скорость для игры
+                    GameSettings.speed = speed
 
                     textSpeed.text =
                         "Скорость игры: $speed"
@@ -99,15 +86,17 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
 
         // -----------------------------------------
-        // Максимальное количество тараканов
+        // Максимальное количество крокозябр
         // Значение от 1 до 20
         // -----------------------------------------
 
         seekCockroaches.max = 19
-        seekCockroaches.progress = 9
+
+        seekCockroaches.progress =
+            GameSettings.maxCockroaches - 1
 
         textCockroaches.text =
-            "Максимальное количество тараканов: 10"
+            "Максимальное количество крокозябр: ${GameSettings.maxCockroaches}"
 
         seekCockroaches.setOnSeekBarChangeListener(
             object : SeekBar.OnSeekBarChangeListener {
@@ -121,8 +110,11 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
                     val count =
                         progress + 1
 
+                    // Сохраняем количество тараканов
+                    GameSettings.maxCockroaches = count
+
                     textCockroaches.text =
-                        "Максимальное количество тараканов: $count"
+                        "Максимальное количество крокозябр: $count"
                 }
 
                 override fun onStartTrackingTouch(
@@ -144,10 +136,12 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         // -----------------------------------------
 
         seekBonus.max = 59
-        seekBonus.progress = 9
+
+        seekBonus.progress =
+            GameSettings.bonusInterval - 1
 
         textBonus.text =
-            "Интервал появления бонусов: 10 сек"
+            "Интервал появления бонусов: ${GameSettings.bonusInterval} сек"
 
         seekBonus.setOnSeekBarChangeListener(
             object : SeekBar.OnSeekBarChangeListener {
@@ -160,6 +154,9 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
                     val seconds =
                         progress + 1
+
+                    // Сохраняем интервал бонусов
+                    GameSettings.bonusInterval = seconds
 
                     textBonus.text =
                         "Интервал появления бонусов: $seconds сек"
@@ -181,13 +178,16 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         // -----------------------------------------
         // Длительность раунда
         // Значение от 30 до 300 секунд
+        // Шаг 30 секунд
         // -----------------------------------------
 
         seekRound.max = 9
-        seekRound.progress = 3
+
+        seekRound.progress =
+            GameSettings.roundDuration / 30 - 1
 
         textRound.text =
-            "Длительность раунда: 120 сек"
+            "Длительность раунда: ${GameSettings.roundDuration} сек"
 
         seekRound.setOnSeekBarChangeListener(
             object : SeekBar.OnSeekBarChangeListener {
@@ -200,6 +200,9 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
                     val seconds =
                         (progress + 1) * 30
+
+                    // Сохраняем длительность раунда
+                    GameSettings.roundDuration = seconds
 
                     textRound.text =
                         "Длительность раунда: $seconds сек"
