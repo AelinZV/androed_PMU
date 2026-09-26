@@ -1,5 +1,7 @@
 package com.example.myapplication
 
+import android.app.AlertDialog
+import android.content.Intent
 import android.app.DatePickerDialog
 import android.os.Bundle
 import android.view.View
@@ -32,9 +34,12 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
     private lateinit var buttonRegister: Button
     private lateinit var textResult: TextView
 
+    private lateinit var buttonStartGame: Button
     private var selectedDay = 0
     private var selectedMonth = 0
     private var selectedYear = 0
+
+    private var isPlayerRegistered = false
 
     override fun onViewCreated(
         view: View,
@@ -42,7 +47,9 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
     ) {
         super.onViewCreated(view, savedInstanceState)
 
+        // -----------------------------------------
         // Получаем элементы интерфейса
+        // -----------------------------------------
 
         editFullName = view.findViewById(R.id.editFullName)
         radioGender = view.findViewById(R.id.radioGender)
@@ -59,9 +66,11 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
         buttonRegister = view.findViewById(R.id.buttonRegister)
         textResult = view.findViewById(R.id.textResult)
 
+        buttonStartGame = view.findViewById(R.id.buttonStartGame)
+
 
         // -----------------------------------------
-        // Настройка курса
+        // Настройка списка курсов
         // -----------------------------------------
 
         val courses = arrayOf(
@@ -154,7 +163,10 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
 
         updateDate()
 
+
+        // -----------------------------------------
         // Показываем знак зодиака
+        // -----------------------------------------
 
         setZodiacImage(
             getZodiacSign(
@@ -165,11 +177,14 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
 
 
         // -----------------------------------------
-        // Выбор даты в CalendarView
+        // Выбор даты через CalendarView
         // -----------------------------------------
 
         calendarBirth.setOnDateChangeListener {
-                _, year, month, dayOfMonth ->
+                _,
+                year,
+                month,
+                dayOfMonth ->
 
             selectedYear = year
             selectedMonth = month
@@ -177,10 +192,11 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
 
             updateDate()
 
-            val zodiac = getZodiacSign(
-                selectedDay,
-                selectedMonth + 1
-            )
+            val zodiac =
+                getZodiacSign(
+                    selectedDay,
+                    selectedMonth + 1
+                )
 
             setZodiacImage(zodiac)
         }
@@ -204,6 +220,68 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
 
             registerPlayer()
         }
+
+
+        // -----------------------------------------
+        // Кнопка "Начать игру"
+        // -----------------------------------------
+
+        buttonStartGame.setOnClickListener {
+
+            // Проверяем, зарегистрирован ли игрок
+            if (isPlayerRegistered) {
+
+                // Зарегистрирован
+                // Запускаем игру сразу
+                startGame()
+
+            } else {
+
+                // Не зарегистрирован
+                // Показываем предупреждающее окно
+                showNotRegisteredDialog()
+            }
+        }
+    }
+
+    private fun showNotRegisteredDialog() {
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Игрок не зарегистрирован")
+            .setMessage(
+                "Вы не зарегистрированы.\n\n" +
+                        "Ваш результат не будет сохранён.\n\n" +
+                        "Вы уверены, что хотите продолжить?"
+            )
+
+            // Кнопка "Назад"
+            .setNegativeButton("Назад") { dialog, _ ->
+
+                // Просто закрываем окно.
+                // Пользователь остаётся на странице регистрации.
+                dialog.dismiss()
+            }
+
+            // Кнопка "Продолжить"
+            .setPositiveButton("Продолжить") { _, _ ->
+
+                // Запускаем игру без регистрации
+                startGame()
+            }
+
+            .show()
+    }
+
+
+    private fun startGame() {
+
+        val intent =
+            Intent(
+                requireContext(),
+                GameActivity::class.java
+            )
+
+        startActivity(intent)
     }
 
 
@@ -374,6 +452,7 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
         // Показываем изображение
 
         setZodiacImage(player.zodiac)
+        isPlayerRegistered = true
     }
 
 
