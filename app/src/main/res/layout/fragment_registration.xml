@@ -34,7 +34,6 @@
             android:inputType="textPersonName"
             android:layout_marginBottom="15dp" />
 
-
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -64,7 +63,6 @@
 
         </RadioGroup>
 
-
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -77,7 +75,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="15dp" />
-
 
         <TextView
             android:layout_width="match_parent"
@@ -101,7 +98,6 @@
             android:textSize="16sp"
             android:gravity="center"
             android:layout_marginBottom="15dp" />
-
 
         <TextView
             android:layout_width="match_parent"
@@ -132,7 +128,6 @@
             android:gravity="center"
             android:layout_marginBottom="15dp" />
 
-
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -150,7 +145,6 @@
             android:contentDescription="Знак зодиака"
             android:layout_marginBottom="15dp" />
 
-
         <Button
             android:id="@+id/buttonRegister"
             android:layout_width="match_parent"
@@ -158,13 +152,24 @@
             android:text="Зарегистрировать игрока"
             android:layout_marginBottom="15dp" />
 
-
         <TextView
             android:id="@+id/textResult"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="17sp"
             android:padding="10dp" />
+
+        <!-- НОВАЯ КНОПКА ДЛЯ ЛР №4 -->
+
+        <Button
+            android:id="@+id/buttonStartGame"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="15dp"
+            android:layout_marginBottom="20dp"
+            android:text="Начать игру"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
     </LinearLayout>
 

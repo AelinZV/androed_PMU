@@ -27,7 +27,6 @@ class MainActivity : AppCompatActivity() {
                 3 -> "Настройки"
                 else -> ""
             }
-
         }.attach()
     }
 }

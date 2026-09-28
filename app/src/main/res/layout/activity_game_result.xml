@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="30dp"
+    android:background="#8BC34A">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ИГРА ОКОНЧЕНА"
+        android:textSize="30sp"
+        android:textStyle="bold"
+        android:textColor="#000000"
+        android:layout_marginBottom="35dp" />
+
+    <TextView
+        android:id="@+id/textResultScore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Очки: 0"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:textColor="#000000"
+        android:layout_marginBottom="25dp" />
+
+    <TextView
+        android:id="@+id/textHits"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Попадания: 0"
+        android:textSize="20sp"
+        android:textColor="#000000"
+        android:layout_marginBottom="10dp" />
+
+    <TextView
+        android:id="@+id/textMisses"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Промахи: 0"
+        android:textSize="20sp"
+        android:textColor="#000000"
+        android:layout_marginBottom="10dp" />
+
+    <TextView
+        android:id="@+id/textAccuracy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Точность: 0%"
+        android:textSize="20sp"
+        android:textColor="#000000"
+        android:layout_marginBottom="35dp" />
+
+    <Button
+        android:id="@+id/buttonRestart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Играть ещё раз"
+        android:textSize="18sp" />
+
+    <Button
+        android:id="@+id/buttonBack"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Вернуться назад"
+        android:textSize="18sp" />
+
+</LinearLayout>

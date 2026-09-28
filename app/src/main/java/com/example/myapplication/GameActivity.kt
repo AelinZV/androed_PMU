@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import android.content.Intent
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
@@ -7,7 +8,6 @@ import android.os.Looper
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlin.math.abs
 import kotlin.random.Random
@@ -18,27 +18,29 @@ class GameActivity : AppCompatActivity() {
     private lateinit var textScore: TextView
     private lateinit var textTime: TextView
 
-    // Список всех насекомых, которые сейчас находятся на поле
+    // Все насекомые, которые сейчас находятся на поле
     private val bugs = mutableListOf<Bug>()
 
-    // Изображения насекомых
-    private val bugImages = listOf(
-        R.drawable.zhuk1,
-        R.drawable.pawuk,
-        R.drawable.murash
-    )
-
-    // Текущее количество очков
+    // Текущие очки
     private var score = 0
 
-    // Handler нужен для постоянного движения насекомых
+    // Количество попаданий
+    private var hits = 0
+
+    // Количество промахов
+    private var misses = 0
+
+    // Следующий уникальный ID насекомого
+    private var nextBugId = 1
+
+    // Используется для движения насекомых
     private val handler =
         Handler(Looper.getMainLooper())
 
-    // Показывает, продолжается ли игра
+    // Продолжается ли игра
     private var gameRunning = true
 
-    // Задержка между обновлениями положения насекомых
+    // Примерно 60 обновлений в секунду
     private val updateDelay = 16L
 
 
@@ -46,10 +48,6 @@ class GameActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_game)
-
-        // -----------------------------------------
-        // Получаем элементы интерфейса
-        // -----------------------------------------
 
         gameField =
             findViewById(R.id.gameField)
@@ -62,12 +60,14 @@ class GameActivity : AppCompatActivity() {
 
 
         // -----------------------------------------
-        // Нажатие по пустому месту = промах
+        // Промах
         // -----------------------------------------
 
         gameField.setOnClickListener {
 
             if (gameRunning) {
+
+                misses++
 
                 score -= 5
 
@@ -77,7 +77,7 @@ class GameActivity : AppCompatActivity() {
 
 
         // -----------------------------------------
-        // Ждём, пока Android определит размеры поля
+        // Ждём определения размеров игрового поля
         // -----------------------------------------
 
         gameField.post {
@@ -110,38 +110,106 @@ class GameActivity : AppCompatActivity() {
 
     private fun createBug() {
 
-        // Если игра закончилась, новых насекомых не создаём
         if (!gameRunning) {
             return
         }
 
-        // Проверяем максимальное количество насекомых
         if (bugs.size >= GameSettings.maxCockroaches) {
             return
         }
 
 
-        // Создаём изображение насекомого
-        val bugImage = ImageView(this)
+        // -----------------------------------------
+        // Определяем тип насекомого
+        //
+        // 55% - обычный муравей
+        // 35% - быстрый жук
+        // 10% - редкий паук
+        // -----------------------------------------
+
+        val chance =
+            Random.nextInt(100)
+
+        val type =
+            when {
+
+                chance < 10 ->
+                    BugType.RARE
+
+                chance < 45 ->
+                    BugType.FAST
+
+                else ->
+                    BugType.NORMAL
+            }
 
 
         // -----------------------------------------
-        // Выбираем случайное изображение
+        // Характеристики в зависимости от типа
         // -----------------------------------------
 
-        val randomBugImage =
-            bugImages.random()
+        val imageResource: Int
+        val size: Int
+        val speedMultiplier: Float
+        val points: Int
+
+
+        when (type) {
+
+            // Обычный муравей
+            BugType.NORMAL -> {
+
+                imageResource =
+                    R.drawable.murash
+
+                size = 100
+
+                speedMultiplier = 1.0f
+
+                points = 10
+            }
+
+
+            // Быстрый жук
+            BugType.FAST -> {
+
+                imageResource =
+                    R.drawable.zhuk1
+
+                size = 80
+
+                speedMultiplier = 1.8f
+
+                points = 20
+            }
+
+
+            // Редкий паук
+            BugType.RARE -> {
+
+                imageResource =
+                    R.drawable.pawuk
+
+                size = 120
+
+                speedMultiplier = 1.2f
+
+                points = 50
+            }
+        }
+
+
+        // -----------------------------------------
+        // Создаём ImageView
+        // -----------------------------------------
+
+        val bugImage =
+            ImageView(this)
 
         bugImage.setImageResource(
-            randomBugImage
+            imageResource
         )
 
-
-        // -----------------------------------------
-        // Размер насекомого
-        // -----------------------------------------
-
-        val size = 100
 
         val params =
             FrameLayout.LayoutParams(
@@ -149,11 +217,12 @@ class GameActivity : AppCompatActivity() {
                 size
             )
 
-        bugImage.layoutParams = params
+        bugImage.layoutParams =
+            params
 
 
         // -----------------------------------------
-        // Определяем границы игрового поля
+        // Границы игрового поля
         // -----------------------------------------
 
         val maxX =
@@ -166,42 +235,44 @@ class GameActivity : AppCompatActivity() {
 
 
         // -----------------------------------------
-        // Случайная начальная позиция
+        // Случайная позиция
         // -----------------------------------------
 
         val x =
-            Random.nextInt(maxX).toFloat()
+            Random.nextInt(maxX)
+                .toFloat()
 
         val y =
-            Random.nextInt(maxY).toFloat()
+            Random.nextInt(maxY)
+                .toFloat()
 
         bugImage.x = x
         bugImage.y = y
 
 
         // -----------------------------------------
-        // Скорость движения
+        // Скорость
         // -----------------------------------------
 
         val speed =
-            GameSettings.speed.toFloat()
+            GameSettings.speed *
+                    speedMultiplier
 
 
-        // Случайная скорость по X и Y
         var dx =
-            Random.nextFloat() * speed + 1
+            Random.nextFloat() *
+                    speed + 1
 
         var dy =
-            Random.nextFloat() * speed + 1
+            Random.nextFloat() *
+                    speed + 1
 
 
-        // Случайное направление по горизонтали
+        // Случайное направление
         if (Random.nextBoolean()) {
             dx = -dx
         }
 
-
-        // Случайное направление по вертикали
         if (Random.nextBoolean()) {
             dy = -dy
         }
@@ -213,24 +284,27 @@ class GameActivity : AppCompatActivity() {
 
         val bug =
             Bug(
-                bugImage,
-                x,
-                y,
-                dx,
-                dy
+                id = nextBugId++,
+                imageView = bugImage,
+                x = x,
+                y = y,
+                dx = dx,
+                dy = dy,
+                size = size,
+                type = type,
+                points = points
             )
 
 
-        // Добавляем насекомое в список
         bugs.add(bug)
 
-
-        // Добавляем изображение на игровое поле
-        gameField.addView(bugImage)
+        gameField.addView(
+            bugImage
+        )
 
 
         // -----------------------------------------
-        // Нажатие непосредственно по насекомому
+        // Попадание по насекомому
         // -----------------------------------------
 
         bugImage.setOnClickListener {
@@ -240,19 +314,22 @@ class GameActivity : AppCompatActivity() {
             }
 
 
-            // За попадание даём 10 очков
-            score += 10
+            // Увеличиваем количество попаданий
+            hits++
 
 
-            // Обновляем количество очков
+            // Добавляем стоимость конкретного насекомого
+            score += bug.points
+
+
             updateScore()
 
 
-            // Удаляем насекомое
+            // Удаляем пойманное насекомое
             removeBug(bug)
 
 
-            // Создаём новое насекомое
+            // Создаём новое
             createBug()
         }
     }
@@ -264,13 +341,10 @@ class GameActivity : AppCompatActivity() {
 
     private fun removeBug(bug: Bug) {
 
-        // Удаляем изображение с игрового поля
         gameField.removeView(
             bug.imageView
         )
 
-
-        // Удаляем объект из списка
         bugs.remove(bug)
     }
 
@@ -287,19 +361,14 @@ class GameActivity : AppCompatActivity() {
 
                 override fun run() {
 
-                    // Если игра закончилась,
-                    // больше ничего не обновляем
                     if (!gameRunning) {
                         return
                     }
 
 
-                    // Перемещаем всех насекомых
                     moveBugs()
 
 
-                    // Через 16 миллисекунд
-                    // снова запускаем этот код
                     handler.postDelayed(
                         this,
                         updateDelay
@@ -311,7 +380,7 @@ class GameActivity : AppCompatActivity() {
 
 
     // -----------------------------------------
-    // Перемещение всех насекомых
+    // Движение всех насекомых
     // -----------------------------------------
 
     private fun moveBugs() {
@@ -390,25 +459,25 @@ class GameActivity : AppCompatActivity() {
             }
 
 
-            // ---------------------------------
-            // Передаём новые координаты ImageView
-            // ---------------------------------
+            // Передаём новые координаты изображению
+            bug.imageView.x =
+                bug.x
 
-            bug.imageView.x = bug.x
-            bug.imageView.y = bug.y
+            bug.imageView.y =
+                bug.y
         }
     }
 
 
     // -----------------------------------------
-    // Таймер игры
+    // Таймер раунда
     // -----------------------------------------
 
     private fun startTimer() {
 
-        // Получаем длительность раунда из настроек
         val duration =
-            GameSettings.roundDuration * 1000L
+            GameSettings.roundDuration *
+                    1000L
 
 
         object : CountDownTimer(
@@ -416,7 +485,6 @@ class GameActivity : AppCompatActivity() {
             1000
         ) {
 
-            // Вызывается каждую секунду
             override fun onTick(
                 millisUntilFinished: Long
             ) {
@@ -430,7 +498,6 @@ class GameActivity : AppCompatActivity() {
             }
 
 
-            // Вызывается после окончания времени
             override fun onFinish() {
 
                 gameRunning = false
@@ -448,7 +515,7 @@ class GameActivity : AppCompatActivity() {
 
 
     // -----------------------------------------
-    // Обновление количества очков
+    // Обновление очков
     // -----------------------------------------
 
     private fun updateScore() {
@@ -459,40 +526,56 @@ class GameActivity : AppCompatActivity() {
 
 
     // -----------------------------------------
-    // Конец игры
+    // Завершение игры
     // -----------------------------------------
 
     private fun endGame() {
 
-        // Останавливаем движение насекомых
+        // Останавливаем движение
         handler.removeCallbacksAndMessages(
             null
         )
 
 
-        // Показываем результат
-        Toast.makeText(
-            this,
-            "Игра окончена! Очки: $score",
-            Toast.LENGTH_LONG
-        ).show()
+        // Переходим на экран результатов
+        val intent =
+            Intent(
+                this,
+                GameResultActivity::class.java
+            )
+
+
+        // Передаём результаты игры
+        intent.putExtra(
+            "SCORE",
+            score
+        )
+
+        intent.putExtra(
+            "HITS",
+            hits
+        )
+
+        intent.putExtra(
+            "MISSES",
+            misses
+        )
+
+
+        startActivity(intent)
+
+
+        // Закрываем текущую игру
+        finish()
     }
 
-
-    // -----------------------------------------
-    // Закрытие GameActivity
-    // -----------------------------------------
 
     override fun onDestroy() {
 
         super.onDestroy()
 
-
-        // Останавливаем игру
         gameRunning = false
 
-
-        // Останавливаем Handler
         handler.removeCallbacksAndMessages(
             null
         )
