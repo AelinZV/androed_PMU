@@ -13,11 +13,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
 
+
         <!-- Экран результатов игры -->
         <activity
             android:name=".GameResultActivity"
             android:screenOrientation="portrait"
             android:exported="false" />
+
 
         <!-- Игровой экран -->
         <activity
