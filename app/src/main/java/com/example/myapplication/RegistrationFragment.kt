@@ -35,6 +35,12 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
     private lateinit var textResult: TextView
 
     private lateinit var buttonStartGame: Button
+
+    // ЛР №5: выбор ранее зарегистрированного игрока
+    private lateinit var spinnerExistingPlayers: Spinner
+    private lateinit var buttonSelectPlayer: Button
+    private lateinit var textCurrentPlayer: TextView
+    private var existingPlayers: List<PlayerEntity> = emptyList()
     private var selectedDay = 0
     private var selectedMonth = 0
     private var selectedYear = 0
@@ -67,6 +73,10 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
         textResult = view.findViewById(R.id.textResult)
 
         buttonStartGame = view.findViewById(R.id.buttonStartGame)
+
+        spinnerExistingPlayers = view.findViewById(R.id.spinnerExistingPlayers)
+        buttonSelectPlayer = view.findViewById(R.id.buttonSelectPlayer)
+        textCurrentPlayer = view.findViewById(R.id.textCurrentPlayer)
 
 
         // -----------------------------------------
@@ -242,6 +252,21 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
                 showNotRegisteredDialog()
             }
         }
+
+        // ЛР №5: выбор ранее сохранённого игрока
+        buttonSelectPlayer.setOnClickListener {
+            selectExistingPlayer()
+        }
+
+        // Если игрок уже был выбран в текущем запуске приложения,
+        // восстанавливаем его как активного.
+        if (PlayerSession.playerId != null) {
+            isPlayerRegistered = true
+            textCurrentPlayer.text =
+                "Текущий игрок: ${PlayerSession.fullName} (${PlayerSession.difficulty})"
+        }
+
+        loadExistingPlayers()
     }
 
     private fun showNotRegisteredDialog() {
@@ -265,7 +290,9 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
             // Кнопка "Продолжить"
             .setPositiveButton("Продолжить") { _, _ ->
 
-                // Запускаем игру без регистрации
+                // Запускаем игру без регистрации.
+                // Очищаем выбранного игрока, чтобы результат не попал в Room.
+                PlayerSession.clear()
                 startGame()
             }
 
@@ -421,7 +448,7 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
             )
 
 
-        // Создаём игрока
+        // Создаём объект игрока для интерфейса
 
         val player = Player(
             fullName = fullName,
@@ -432,27 +459,147 @@ class RegistrationFragment : Fragment(R.layout.fragment_registration) {
             zodiac = zodiac
         )
 
+        // ЛР №5: создаём сущность Room и сохраняем игрока в БД.
+        val playerEntity = PlayerEntity(
+            player.fullName,
+            player.gender,
+            player.course,
+            player.difficulty,
+            player.birthDate,
+            player.zodiac
+        )
 
-        // Выводим информацию
+        val database =
+            AppDatabase.getInstance(requireContext().applicationContext)
 
-        textResult.text = """
+        buttonRegister.isEnabled = false
 
-            Игрок зарегистрирован!
+        Thread {
 
-            ФИО: ${player.fullName}
-            Пол: ${player.gender}
-            Курс: ${player.course}
-            Уровень сложности: ${player.difficulty}
-            Дата рождения: ${player.birthDate}
-            Знак зодиака: ${player.zodiac}
+            val playerId =
+                database.playerDao().insert(playerEntity)
 
-        """.trimIndent()
+            activity?.runOnUiThread {
+
+                if (!isAdded) {
+                    return@runOnUiThread
+                }
+
+                buttonRegister.isEnabled = true
+
+                // Новый игрок сразу становится текущим.
+                PlayerSession.select(
+                    playerId = playerId,
+                    fullName = player.fullName,
+                    difficulty = player.difficulty
+                )
+
+                isPlayerRegistered = true
+
+                textCurrentPlayer.text =
+                    "Текущий игрок: ${player.fullName} (${player.difficulty})"
+
+                textResult.text = """
+                    Игрок сохранён в базе данных!
+
+                    ФИО: ${player.fullName}
+                    Пол: ${player.gender}
+                    Курс: ${player.course}
+                    Уровень сложности: ${player.difficulty}
+                    Дата рождения: ${player.birthDate}
+                    Знак зодиака: ${player.zodiac}
+                """.trimIndent()
+
+                setZodiacImage(player.zodiac)
+
+                // Обновляем список ранее зарегистрированных игроков.
+                loadExistingPlayers()
+            }
+        }.start()
+    }
 
 
-        // Показываем изображение
+    // =================================================
+    // ЛР №5. Загрузка игроков из Room
+    // =================================================
 
-        setZodiacImage(player.zodiac)
+    private fun loadExistingPlayers() {
+
+        val database =
+            AppDatabase.getInstance(requireContext().applicationContext)
+
+        Thread {
+
+            val players =
+                database.playerDao().getAllPlayers()
+
+            activity?.runOnUiThread {
+
+                if (!isAdded) {
+                    return@runOnUiThread
+                }
+
+                existingPlayers = players
+
+                val names =
+                    if (players.isEmpty()) {
+                        listOf("Сохранённых игроков пока нет")
+                    } else {
+                        players.map { player ->
+                            "${player.fullName} — ${player.difficulty}"
+                        }
+                    }
+
+                val adapter = ArrayAdapter(
+                    requireContext(),
+                    android.R.layout.simple_spinner_item,
+                    names
+                )
+
+                adapter.setDropDownViewResource(
+                    android.R.layout.simple_spinner_dropdown_item
+                )
+
+                spinnerExistingPlayers.adapter = adapter
+                buttonSelectPlayer.isEnabled = players.isNotEmpty()
+            }
+        }.start()
+    }
+
+
+    // =================================================
+    // ЛР №5. Выбор ранее зарегистрированного игрока
+    // =================================================
+
+    private fun selectExistingPlayer() {
+
+        if (existingPlayers.isEmpty()) {
+            return
+        }
+
+        val position =
+            spinnerExistingPlayers.selectedItemPosition
+
+        if (position !in existingPlayers.indices) {
+            return
+        }
+
+        val player =
+            existingPlayers[position]
+
+        PlayerSession.select(
+            playerId = player.id,
+            fullName = player.fullName,
+            difficulty = player.difficulty
+        )
+
         isPlayerRegistered = true
+
+        textCurrentPlayer.text =
+            "Текущий игрок: ${player.fullName} (${player.difficulty})"
+
+        textResult.text =
+            "Выбран ранее зарегистрированный игрок: ${player.fullName}"
     }
 
 
