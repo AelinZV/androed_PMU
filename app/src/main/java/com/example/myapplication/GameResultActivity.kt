@@ -12,89 +12,57 @@ class GameResultActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        setContentView(
-            R.layout.activity_game_result
-        )
-
+        setContentView(R.layout.activity_game_result)
 
         val textResultScore =
-            findViewById<TextView>(
-                R.id.textResultScore
-            )
+            findViewById<TextView>(R.id.textResultScore)
 
         val textHits =
-            findViewById<TextView>(
-                R.id.textHits
-            )
+            findViewById<TextView>(R.id.textHits)
 
         val textMisses =
-            findViewById<TextView>(
-                R.id.textMisses
-            )
+            findViewById<TextView>(R.id.textMisses)
 
         val textAccuracy =
-            findViewById<TextView>(
-                R.id.textAccuracy
-            )
+            findViewById<TextView>(R.id.textAccuracy)
+
+        val textSaveStatus =
+            findViewById<TextView>(R.id.textSaveStatus)
 
         val buttonRestart =
-            findViewById<Button>(
-                R.id.buttonRestart
-            )
+            findViewById<Button>(R.id.buttonRestart)
 
         val buttonBack =
-            findViewById<Button>(
-                R.id.buttonBack
-            )
+            findViewById<Button>(R.id.buttonBack)
 
 
-        // -----------------------------------------
-        // Получаем результаты из GameActivity
-        // -----------------------------------------
-
+        // Получаем результаты из GameActivity.
         val score =
-            intent.getIntExtra(
-                "SCORE",
-                0
-            )
+            intent.getIntExtra("SCORE", 0)
 
         val hits =
-            intent.getIntExtra(
-                "HITS",
-                0
-            )
+            intent.getIntExtra("HITS", 0)
 
         val misses =
-            intent.getIntExtra(
-                "MISSES",
-                0
-            )
+            intent.getIntExtra("MISSES", 0)
+
+        val durationSeconds =
+            intent.getIntExtra("DURATION_SECONDS", 0)
 
 
-        // -----------------------------------------
-        // Рассчитываем точность
-        // -----------------------------------------
-
+        // Рассчитываем точность.
         val totalClicks =
             hits + misses
 
-
         val accuracy =
             if (totalClicks > 0) {
-
-                hits * 100.0 /
-                        totalClicks
-
+                hits * 100.0 / totalClicks
             } else {
-
                 0.0
             }
 
 
-        // -----------------------------------------
-        // Вывод результатов
-        // -----------------------------------------
-
+        // Выводим статистику.
         textResultScore.text =
             "Очки: $score"
 
@@ -112,31 +80,91 @@ class GameResultActivity : AppCompatActivity() {
             )
 
 
-        // -----------------------------------------
-        // Повторная игра
-        // -----------------------------------------
+        // ЛР №5: сохраняем результат в Room только для выбранного игрока.
+        // savedInstanceState == null защищает от повторной записи при пересоздании Activity.
+        if (savedInstanceState == null) {
+            saveResult(
+                score = score,
+                hits = hits,
+                misses = misses,
+                accuracy = accuracy,
+                durationSeconds = durationSeconds,
+                textSaveStatus = textSaveStatus
+            )
+        }
 
+
+        // Повторная игра — выбранный игрок остаётся активным.
         buttonRestart.setOnClickListener {
 
-            val intent =
+            val restartIntent =
                 Intent(
                     this,
                     GameActivity::class.java
                 )
 
-            startActivity(intent)
-
+            startActivity(restartIntent)
             finish()
         }
 
 
-        // -----------------------------------------
-        // Возвращение в главное меню
-        // -----------------------------------------
-
+        // Возвращаемся на главный экран приложения.
         buttonBack.setOnClickListener {
-
             finish()
         }
+    }
+
+
+    // =================================================
+    // ЛР №5. Сохранение результата игры в Room
+    // =================================================
+
+    private fun saveResult(
+        score: Int,
+        hits: Int,
+        misses: Int,
+        accuracy: Double,
+        durationSeconds: Int,
+        textSaveStatus: TextView
+    ) {
+
+        val playerId =
+            PlayerSession.playerId
+
+        // Если игра была запущена без регистрации,
+        // результат в базу не записываем.
+        if (playerId == null) {
+            textSaveStatus.text =
+                "Результат не сохранён: игрок не выбран"
+            return
+        }
+
+        val result =
+            GameResultEntity(
+                playerId,
+                score,
+                hits,
+                misses,
+                accuracy,
+                PlayerSession.difficulty,
+                System.currentTimeMillis(),
+                durationSeconds
+            )
+
+        val database =
+            AppDatabase.getInstance(applicationContext)
+
+        textSaveStatus.text =
+            "Сохранение результата..."
+
+        Thread {
+
+            database.gameResultDao().insert(result)
+
+            runOnUiThread {
+                textSaveStatus.text =
+                    "Результат сохранён: ${PlayerSession.fullName}"
+            }
+        }.start()
     }
 }

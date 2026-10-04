@@ -9,7 +9,7 @@ class MainPagerAdapter(
 ) : FragmentStateAdapter(activity) {
 
     override fun getItemCount(): Int {
-        return 4
+        return 5
     }
 
     override fun createFragment(position: Int): Fragment {
@@ -23,6 +23,8 @@ class MainPagerAdapter(
             2 -> AuthorsFragment()
 
             3 -> SettingsFragment()
+
+            4 -> RecordsFragment()
 
             else -> RegistrationFragment()
         }

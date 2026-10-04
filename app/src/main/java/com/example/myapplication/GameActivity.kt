@@ -43,6 +43,9 @@ class GameActivity : AppCompatActivity() {
     // Примерно 60 обновлений в секунду
     private val updateDelay = 16L
 
+    // Время начала текущего раунда
+    private var gameStartedAt = 0L
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -475,6 +478,8 @@ class GameActivity : AppCompatActivity() {
 
     private fun startTimer() {
 
+        gameStartedAt = System.currentTimeMillis()
+
         val duration =
             GameSettings.roundDuration *
                     1000L
@@ -559,6 +564,16 @@ class GameActivity : AppCompatActivity() {
         intent.putExtra(
             "MISSES",
             misses
+        )
+
+        val durationSeconds =
+            ((System.currentTimeMillis() - gameStartedAt) / 1000L)
+                .toInt()
+                .coerceAtLeast(0)
+
+        intent.putExtra(
+            "DURATION_SECONDS",
+            durationSeconds
         )
 
 
