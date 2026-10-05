@@ -1,6 +1,12 @@
 package com.example.myapplication
 
+import android.content.Context
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
@@ -8,11 +14,12 @@ import android.os.Looper
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlin.math.abs
 import kotlin.random.Random
 
-class GameActivity : AppCompatActivity() {
+class GameActivity : AppCompatActivity(), SensorEventListener {
 
     private lateinit var gameField: FrameLayout
     private lateinit var textScore: TextView
@@ -33,9 +40,8 @@ class GameActivity : AppCompatActivity() {
     // Следующий уникальный ID насекомого
     private var nextBugId = 1
 
-    // Используется для движения насекомых
-    private val handler =
-        Handler(Looper.getMainLooper())
+    // Handler игрового цикла и бонуса
+    private val handler = Handler(Looper.getMainLooper())
 
     // Продолжается ли игра
     private var gameRunning = true
@@ -46,73 +52,101 @@ class GameActivity : AppCompatActivity() {
     // Время начала текущего раунда
     private var gameStartedAt = 0L
 
+    // =================================================
+    // ЛР №6. Бонус и наклон телефона
+    // =================================================
+
+    private lateinit var sensorManager: SensorManager
+    private var accelerometer: Sensor? = null
+
+    // После нажатия на бонус движение начинает учитывать наклон
+    private var tiltModeEnabled = false
+
+    // Текущее значение наклона по двум осям
+    private var tiltX = 0f
+    private var tiltY = 0f
+
+    // Насколько сильно наклон влияет на движение
+    private val tiltStrength = 0.75f
+
+    // Текущий бонус на поле
+    private var currentBonus: ImageView? = null
+
+    // По заданию бонус появляется каждые 15 секунд
+    private val bonusIntervalMs = 15_000L
+
+    // Если бонус не нажать, через 8 секунд он исчезает
+    private val bonusLifetimeMs = 8_000L
+
+    // Звук при активации бонуса
+    private var screamPlayer: MediaPlayer? = null
+
+    private val bonusRunnable = object : Runnable {
+        override fun run() {
+            if (!gameRunning) {
+                return
+            }
+
+            createBonus()
+            handler.postDelayed(this, bonusIntervalMs)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_game)
 
-        gameField =
-            findViewById(R.id.gameField)
+        gameField = findViewById(R.id.gameField)
+        textScore = findViewById(R.id.textScore)
+        textTime = findViewById(R.id.textTime)
 
-        textScore =
-            findViewById(R.id.textScore)
+        // Получаем системный сервис датчиков
+        sensorManager =
+            getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
-        textTime =
-            findViewById(R.id.textTime)
-
+        accelerometer =
+            sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
 
         // -----------------------------------------
         // Промах
         // -----------------------------------------
 
         gameField.setOnClickListener {
-
             if (gameRunning) {
-
                 misses++
-
                 score -= 5
-
                 updateScore()
             }
         }
-
 
         // -----------------------------------------
         // Ждём определения размеров игрового поля
         // -----------------------------------------
 
         gameField.post {
-
             createInitialBugs()
-
             startMovement()
-
             startTimer()
+            startBonusTimer()
         }
     }
-
 
     // -----------------------------------------
     // Создание начальных насекомых
     // -----------------------------------------
 
     private fun createInitialBugs() {
-
         repeat(GameSettings.maxCockroaches) {
-
             createBug()
         }
     }
-
 
     // -----------------------------------------
     // Создание одного насекомого
     // -----------------------------------------
 
     private fun createBug() {
-
         if (!gameRunning) {
             return
         }
@@ -121,31 +155,21 @@ class GameActivity : AppCompatActivity() {
             return
         }
 
-
         // -----------------------------------------
         // Определяем тип насекомого
         //
-        // 55% - обычный муравей
-        // 35% - быстрый жук
-        // 10% - редкий паук
+        // 55% - обычный тип
+        // 35% - быстрый тип
+        // 10% - редкий тип
         // -----------------------------------------
 
-        val chance =
-            Random.nextInt(100)
+        val chance = Random.nextInt(100)
 
-        val type =
-            when {
-
-                chance < 10 ->
-                    BugType.RARE
-
-                chance < 45 ->
-                    BugType.FAST
-
-                else ->
-                    BugType.NORMAL
-            }
-
+        val type = when {
+            chance < 10 -> BugType.RARE
+            chance < 45 -> BugType.FAST
+            else -> BugType.NORMAL
+        }
 
         // -----------------------------------------
         // Характеристики в зависимости от типа
@@ -156,73 +180,41 @@ class GameActivity : AppCompatActivity() {
         val speedMultiplier: Float
         val points: Int
 
-
         when (type) {
-
-            // Обычный муравей
+            // Обычный тип
             BugType.NORMAL -> {
-
-                imageResource =
-                    R.drawable.murash
-
+                imageResource = R.drawable.phcel
                 size = 100
-
                 speedMultiplier = 1.0f
-
                 points = 10
             }
 
-
-            // Быстрый жук
+            // Быстрый тип
             BugType.FAST -> {
-
-                imageResource =
-                    R.drawable.zhuk1
-
+                imageResource = R.drawable.skarabeychik
                 size = 80
-
                 speedMultiplier = 1.8f
-
                 points = 20
             }
 
-
-            // Редкий паук
+            // Редкий тип
             BugType.RARE -> {
-
-                imageResource =
-                    R.drawable.pawuk
-
+                imageResource = R.drawable.pawuchok
                 size = 120
-
                 speedMultiplier = 1.2f
-
                 points = 50
             }
         }
-
 
         // -----------------------------------------
         // Создаём ImageView
         // -----------------------------------------
 
-        val bugImage =
-            ImageView(this)
+        val bugImage = ImageView(this)
+        bugImage.setImageResource(imageResource)
 
-        bugImage.setImageResource(
-            imageResource
-        )
-
-
-        val params =
-            FrameLayout.LayoutParams(
-                size,
-                size
-            )
-
-        bugImage.layoutParams =
-            params
-
+        val params = FrameLayout.LayoutParams(size, size)
+        bugImage.layoutParams = params
 
         // -----------------------------------------
         // Границы игрового поля
@@ -236,40 +228,28 @@ class GameActivity : AppCompatActivity() {
             (gameField.height - size)
                 .coerceAtLeast(1)
 
-
         // -----------------------------------------
         // Случайная позиция
         // -----------------------------------------
 
-        val x =
-            Random.nextInt(maxX)
-                .toFloat()
-
-        val y =
-            Random.nextInt(maxY)
-                .toFloat()
+        val x = Random.nextInt(maxX).toFloat()
+        val y = Random.nextInt(maxY).toFloat()
 
         bugImage.x = x
         bugImage.y = y
-
 
         // -----------------------------------------
         // Скорость
         // -----------------------------------------
 
         val speed =
-            GameSettings.speed *
-                    speedMultiplier
-
+            GameSettings.speed * speedMultiplier
 
         var dx =
-            Random.nextFloat() *
-                    speed + 1
+            Random.nextFloat() * speed + 1
 
         var dy =
-            Random.nextFloat() *
-                    speed + 1
-
+            Random.nextFloat() * speed + 1
 
         // Случайное направление
         if (Random.nextBoolean()) {
@@ -279,7 +259,6 @@ class GameActivity : AppCompatActivity() {
         if (Random.nextBoolean()) {
             dy = -dy
         }
-
 
         // -----------------------------------------
         // Создаём объект Bug
@@ -298,259 +277,395 @@ class GameActivity : AppCompatActivity() {
                 points = points
             )
 
-
         bugs.add(bug)
-
-        gameField.addView(
-            bugImage
-        )
-
+        gameField.addView(bugImage)
 
         // -----------------------------------------
         // Попадание по насекомому
         // -----------------------------------------
 
         bugImage.setOnClickListener {
-
             if (!gameRunning) {
                 return@setOnClickListener
             }
 
-
-            // Увеличиваем количество попаданий
             hits++
-
-
-            // Добавляем стоимость конкретного насекомого
             score += bug.points
-
-
             updateScore()
 
-
-            // Удаляем пойманное насекомое
             removeBug(bug)
-
-
-            // Создаём новое
             createBug()
         }
     }
-
 
     // -----------------------------------------
     // Удаление насекомого
     // -----------------------------------------
 
     private fun removeBug(bug: Bug) {
-
-        gameField.removeView(
-            bug.imageView
-        )
-
+        gameField.removeView(bug.imageView)
         bugs.remove(bug)
     }
-
 
     // -----------------------------------------
     // Запуск движения
     // -----------------------------------------
 
     private fun startMovement() {
-
         handler.post(
-
             object : Runnable {
-
                 override fun run() {
-
                     if (!gameRunning) {
                         return
                     }
 
-
                     moveBugs()
-
-
-                    handler.postDelayed(
-                        this,
-                        updateDelay
-                    )
+                    handler.postDelayed(this, updateDelay)
                 }
             }
         )
     }
-
 
     // -----------------------------------------
     // Движение всех насекомых
     // -----------------------------------------
 
     private fun moveBugs() {
-
-        for (bug in bugs) {
-
-
-            // Изменяем координаты
-            bug.x += bug.dx
-            bug.y += bug.dy
-
-
-            // ---------------------------------
-            // Левая граница
-            // ---------------------------------
-
-            if (bug.x <= 0) {
-
-                bug.x = 0f
-
-                bug.dx =
-                    abs(bug.dx)
+        val forceX =
+            if (tiltModeEnabled) {
+                tiltX * tiltStrength
+            } else {
+                0f
             }
 
+        val forceY =
+            if (tiltModeEnabled) {
+                tiltY * tiltStrength
+            } else {
+                0f
+            }
 
-            // ---------------------------------
+        for (bug in bugs) {
+            // Обычное движение + влияние наклона после активации бонуса
+            bug.x += bug.dx + forceX
+            bug.y += bug.dy + forceY
+
+            // Левая граница
+            if (bug.x <= 0) {
+                bug.x = 0f
+                bug.dx = abs(bug.dx)
+            }
+
             // Правая граница
-            // ---------------------------------
-
             if (
                 bug.x + bug.imageView.width
                 >= gameField.width
             ) {
-
                 bug.x =
                     (
                             gameField.width -
                                     bug.imageView.width
                             ).toFloat()
 
-                bug.dx =
-                    -abs(bug.dx)
+                bug.dx = -abs(bug.dx)
             }
 
-
-            // ---------------------------------
             // Верхняя граница
-            // ---------------------------------
-
             if (bug.y <= 0) {
-
                 bug.y = 0f
-
-                bug.dy =
-                    abs(bug.dy)
+                bug.dy = abs(bug.dy)
             }
 
-
-            // ---------------------------------
             // Нижняя граница
-            // ---------------------------------
-
             if (
                 bug.y + bug.imageView.height
                 >= gameField.height
             ) {
-
                 bug.y =
                     (
                             gameField.height -
                                     bug.imageView.height
                             ).toFloat()
 
-                bug.dy =
-                    -abs(bug.dy)
+                bug.dy = -abs(bug.dy)
             }
 
-
-            // Передаём новые координаты изображению
-            bug.imageView.x =
-                bug.x
-
-            bug.imageView.y =
-                bug.y
+            bug.imageView.x = bug.x
+            bug.imageView.y = bug.y
         }
     }
 
+    // =================================================
+    // ЛР №6. Появление бонуса каждые 15 секунд
+    // =================================================
+
+    private fun startBonusTimer() {
+        handler.postDelayed(
+            bonusRunnable,
+            bonusIntervalMs
+        )
+    }
+
+    // -----------------------------------------
+    // Создание бонуса
+    // -----------------------------------------
+
+    private fun createBonus() {
+        if (!gameRunning) {
+            return
+        }
+
+        // На поле одновременно может находиться только один бонус
+        if (currentBonus != null) {
+            return
+        }
+
+        val bonusImage = ImageView(this)
+
+        // Бонус ЛР №6
+        bonusImage.setImageResource(
+            R.drawable.vredina
+        )
+
+        bonusImage.contentDescription =
+            "Бонус управления наклоном"
+
+        val size = 135
+
+        bonusImage.layoutParams =
+            FrameLayout.LayoutParams(
+                size,
+                size
+            )
+
+        val maxX =
+            (gameField.width - size)
+                .coerceAtLeast(1)
+
+        val maxY =
+            (gameField.height - size)
+                .coerceAtLeast(1)
+
+        bonusImage.x =
+            Random.nextInt(maxX).toFloat()
+
+        bonusImage.y =
+            Random.nextInt(maxY).toFloat()
+
+        currentBonus = bonusImage
+        gameField.addView(bonusImage)
+
+        bonusImage.setOnClickListener {
+            if (!gameRunning) {
+                return@setOnClickListener
+            }
+
+            activateTiltBonus()
+            removeBonus()
+        }
+
+        // Если игрок не успел нажать — бонус исчезает
+        handler.postDelayed(
+            {
+                if (currentBonus === bonusImage) {
+                    removeBonus()
+                }
+            },
+            bonusLifetimeMs
+        )
+    }
+
+    // -----------------------------------------
+    // Удаление бонуса с игрового поля
+    // -----------------------------------------
+
+    private fun removeBonus() {
+        val bonus = currentBonus ?: return
+
+        gameField.removeView(bonus)
+        currentBonus = null
+    }
+
+    // -----------------------------------------
+    // Активация бонуса
+    // -----------------------------------------
+
+    private fun activateTiltBonus() {
+        if (accelerometer == null) {
+            Toast.makeText(
+                this,
+                "На устройстве нет акселерометра",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        tiltModeEnabled = true
+        tiltX = 0f
+        tiltY = 0f
+
+        registerAccelerometer()
+        playBugScream()
+
+        Toast.makeText(
+            this,
+            "Бонус активирован! Наклоняйте телефон",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    // =================================================
+    // ЛР №6. Работа с акселерометром
+    // =================================================
+
+    private fun registerAccelerometer() {
+        val sensor = accelerometer ?: return
+
+        sensorManager.unregisterListener(this)
+
+        sensorManager.registerListener(
+            this,
+            sensor,
+            SensorManager.SENSOR_DELAY_GAME
+        )
+    }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (!gameRunning || !tiltModeEnabled) {
+            return
+        }
+
+        if (event?.sensor?.type != Sensor.TYPE_ACCELEROMETER) {
+            return
+        }
+
+        // Для портретного режима:
+        // X отвечает за движение влево/вправо,
+        // Y — вверх/вниз.
+        // Знак X инвертирован, чтобы движение ощущалось естественно.
+        val newTiltX = -event.values[0]
+        val newTiltY = event.values[1]
+
+        // Небольшое сглаживание показаний, чтобы насекомые не дёргались
+        tiltX =
+            tiltX * 0.75f +
+                    newTiltX * 0.25f
+
+        tiltY =
+            tiltY * 0.75f +
+                    newTiltY * 0.25f
+    }
+
+    override fun onAccuracyChanged(
+        sensor: Sensor?,
+        accuracy: Int
+    ) {
+        // Для этой лабораторной дополнительная обработка не нужна
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        // Если бонус уже был активирован, после возврата в Activity
+        // снова начинаем получать данные акселерометра
+        if (tiltModeEnabled) {
+            registerAccelerometer()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        sensorManager.unregisterListener(this)
+    }
+
+    // =================================================
+    // ЛР №6. Звуковой эффект
+    // =================================================
+
+    private fun playBugScream() {
+        screamPlayer?.release()
+        screamPlayer = null
+
+        val player =
+            MediaPlayer.create(
+                this,
+                R.raw.m
+            )
+
+        screamPlayer = player
+
+        player?.setOnCompletionListener {
+            it.release()
+
+            if (screamPlayer === it) {
+                screamPlayer = null
+            }
+        }
+
+        player?.start()
+    }
 
     // -----------------------------------------
     // Таймер раунда
     // -----------------------------------------
 
     private fun startTimer() {
-
         gameStartedAt = System.currentTimeMillis()
 
         val duration =
             GameSettings.roundDuration *
                     1000L
 
-
         object : CountDownTimer(
             duration,
             1000
         ) {
-
             override fun onTick(
                 millisUntilFinished: Long
             ) {
-
                 val seconds =
                     millisUntilFinished / 1000
-
 
                 textTime.text =
                     "Время: $seconds"
             }
 
-
             override fun onFinish() {
-
                 gameRunning = false
-
-
-                textTime.text =
-                    "Время: 0"
-
+                textTime.text = "Время: 0"
 
                 endGame()
             }
-
         }.start()
     }
-
 
     // -----------------------------------------
     // Обновление очков
     // -----------------------------------------
 
     private fun updateScore() {
-
         textScore.text =
             "Очки: $score"
     }
-
 
     // -----------------------------------------
     // Завершение игры
     // -----------------------------------------
 
     private fun endGame() {
+        // Останавливаем движение и появление бонусов
+        handler.removeCallbacksAndMessages(null)
 
-        // Останавливаем движение
-        handler.removeCallbacksAndMessages(
-            null
-        )
+        removeBonus()
+        sensorManager.unregisterListener(this)
 
-
-        // Переходим на экран результатов
         val intent =
             Intent(
                 this,
                 GameResultActivity::class.java
             )
 
-
-        // Передаём результаты игры
         intent.putExtra(
             "SCORE",
             score
@@ -576,23 +691,19 @@ class GameActivity : AppCompatActivity() {
             durationSeconds
         )
 
-
         startActivity(intent)
-
-
-        // Закрываем текущую игру
         finish()
     }
 
-
     override fun onDestroy() {
-
-        super.onDestroy()
-
         gameRunning = false
 
-        handler.removeCallbacksAndMessages(
-            null
-        )
+        handler.removeCallbacksAndMessages(null)
+        sensorManager.unregisterListener(this)
+
+        screamPlayer?.release()
+        screamPlayer = null
+
+        super.onDestroy()
     }
 }
