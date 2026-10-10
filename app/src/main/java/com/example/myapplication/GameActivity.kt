@@ -15,6 +15,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import kotlin.math.roundToInt
 import androidx.appcompat.app.AppCompatActivity
 import kotlin.math.abs
 import kotlin.random.Random
@@ -92,6 +93,20 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         }
     }
 
+    // ЛР №7. Золотой жук Chrysina resplendens появляется каждые 20 секунд.
+    private val goldenIntervalMs = 20_000L
+    private val goldenLifetimeMs = 9_000L
+    private var currentGoldenBug: ImageView? = null
+    private var goldRublesPerGram: Double? = null
+
+    private val goldenRunnable = object : Runnable {
+        override fun run() {
+            if (!gameRunning) return
+            createGoldenBug()
+            handler.postDelayed(this, goldenIntervalMs)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -100,6 +115,13 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         gameField = findViewById(R.id.gameField)
         textScore = findViewById(R.id.textScore)
         textTime = findViewById(R.id.textTime)
+
+        goldRublesPerGram = GoldRateStorage.getRate(this)
+        GoldRepository.refresh(this) { latest ->
+            if (!isFinishing && !isDestroyed && latest != null) {
+                goldRublesPerGram = latest.rublesPerGram
+            }
+        }
 
         // Получаем системный сервис датчиков
         sensorManager =
@@ -129,6 +151,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
             startMovement()
             startTimer()
             startBonusTimer()
+            startGoldenBugTimer()
         }
     }
 
@@ -396,6 +419,59 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
     }
 
     // =================================================
+    // ЛР №7. Золотой жук Chrysina resplendens и курс золота ЦБ
+    // =================================================
+
+    private fun startGoldenBugTimer() {
+        handler.postDelayed(goldenRunnable, goldenIntervalMs)
+    }
+
+    private fun createGoldenBug() {
+        if (!gameRunning || currentGoldenBug != null) return
+
+        val rate = goldRublesPerGram ?: GoldRateStorage.getRate(this)
+        if (rate == null || rate <= 0.0) return // курс пока неизвестен
+
+        val image = ImageView(this)
+        image.setImageResource(R.drawable.chrysina_resplendens)
+        image.contentDescription = "Золотой жук Chrysina resplendens"
+
+        val size = (105 * resources.displayMetrics.density).roundToInt()
+        image.layoutParams = FrameLayout.LayoutParams(size, size)
+
+        val maxX = (gameField.width - size).coerceAtLeast(0)
+        val maxY = (gameField.height - size).coerceAtLeast(0)
+        image.x = Random.nextInt(maxX + 1).toFloat()
+        image.y = Random.nextInt(maxY + 1).toFloat()
+
+        currentGoldenBug = image
+        gameField.addView(image)
+
+        image.setOnClickListener {
+            if (!gameRunning || currentGoldenBug !== image) return@setOnClickListener
+            val points = calculateGoldenBugPoints(rate)
+            score += points
+            hits++
+            updateScore()
+            Toast.makeText(this, "Золотой жук: +$points очков", Toast.LENGTH_SHORT).show()
+            removeGoldenBug()
+        }
+
+        handler.postDelayed({
+            if (currentGoldenBug === image) removeGoldenBug()
+        }, goldenLifetimeMs)
+    }
+
+    private fun calculateGoldenBugPoints(rate: Double): Int =
+        (rate / 100.0).roundToInt().coerceAtLeast(1)
+
+    private fun removeGoldenBug() {
+        val image = currentGoldenBug ?: return
+        gameField.removeView(image)
+        currentGoldenBug = null
+    }
+
+    // =================================================
     // ЛР №6. Появление бонуса каждые 15 секунд
     // =================================================
 
@@ -590,7 +666,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         val player =
             MediaPlayer.create(
                 this,
-                R.raw.m
+                R.raw.bug_scream
             )
 
         screamPlayer = player
@@ -658,6 +734,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         handler.removeCallbacksAndMessages(null)
 
         removeBonus()
+        removeGoldenBug()
         sensorManager.unregisterListener(this)
 
         val intent =
