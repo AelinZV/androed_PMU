@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:id="@+id/goldBall"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/gold_widget_background"
+        android:padding="10dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ЗОЛОТО ЦБ"
+            android:textColor="#533600"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textGoldRate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Загрузка..."
+            android:textColor="#302000"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:maxLines="2" />
+
+        <TextView
+            android:id="@+id/textGoldDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Курс ЦБ"
+            android:textColor="#533600"
+            android:textSize="11sp" />
+    </LinearLayout>
+</FrameLayout>
