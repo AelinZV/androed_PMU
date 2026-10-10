@@ -3,6 +3,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -13,6 +15,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
 
+
+        <!-- Виджет курса золота на рабочем столе -->
+        <receiver android:name=".GoldWidgetProvider" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.myapplication.REFRESH_GOLD_WIDGET" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/gold_widget_info" />
+        </receiver>
 
         <!-- Экран результатов игры -->
         <activity
