@@ -9,3 +9,4 @@
     android:resizeMode="none"
     android:widgetCategory="home_screen"
     android:description="@string/gold_widget_description" />
+
