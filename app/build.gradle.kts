@@ -44,6 +44,10 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.viewpager2:viewpager2:1.1.0")
 
+    // ЛР №8: ViewModel + Koin
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
+    implementation("io.insert-koin:koin-android:4.1.1")
+
     // ЛР №7: Retrofit для получения XML ЦБ
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
 
