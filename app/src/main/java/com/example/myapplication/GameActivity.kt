@@ -8,7 +8,8 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.MediaPlayer
 import android.os.Bundle
-import android.os.CountDownTimer
+import android.os.SystemClock
+import org.koin.androidx.viewmodel.ext.android.viewModel
 import android.os.Handler
 import android.os.Looper
 import android.widget.FrameLayout
@@ -21,6 +22,8 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 class GameActivity : AppCompatActivity(), SensorEventListener {
+
+    private val gameViewModel: GameViewModel by viewModel()
 
     private lateinit var gameField: FrameLayout
     private lateinit var textScore: TextView
@@ -52,6 +55,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
 
     // Время начала текущего раунда
     private var gameStartedAt = 0L
+    private var roundEndsAt = 0L
 
     // =================================================
     // ЛР №6. Бонус и наклон телефона
@@ -72,6 +76,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
 
     // Текущий бонус на поле
     private var currentBonus: ImageView? = null
+    private var bonusExpiresAt = 0L
 
     // По заданию бонус появляется каждые 15 секунд
     private val bonusIntervalMs = 15_000L
@@ -89,6 +94,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
             }
 
             createBonus()
+            gameViewModel.nextBonusAt = SystemClock.elapsedRealtime() + bonusIntervalMs
             handler.postDelayed(this, bonusIntervalMs)
         }
     }
@@ -97,12 +103,14 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
     private val goldenIntervalMs = 20_000L
     private val goldenLifetimeMs = 9_000L
     private var currentGoldenBug: ImageView? = null
+    private var goldenExpiresAt = 0L
     private var goldRublesPerGram: Double? = null
 
     private val goldenRunnable = object : Runnable {
         override fun run() {
             if (!gameRunning) return
             createGoldenBug()
+            gameViewModel.nextGoldenAt = SystemClock.elapsedRealtime() + goldenIntervalMs
             handler.postDelayed(this, goldenIntervalMs)
         }
     }
@@ -115,6 +123,15 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         gameField = findViewById(R.id.gameField)
         textScore = findViewById(R.id.textScore)
         textTime = findViewById(R.id.textTime)
+
+        score = gameViewModel.score
+        hits = gameViewModel.hits
+        misses = gameViewModel.misses
+        nextBugId = gameViewModel.nextBugId
+        tiltModeEnabled = gameViewModel.tiltEnabled
+        gameStartedAt = gameViewModel.startedAt
+        roundEndsAt = gameViewModel.endsAt
+        updateScore()
 
         goldRublesPerGram = GoldRateStorage.getRate(this)
         GoldRepository.refresh(this) { latest ->
@@ -147,7 +164,14 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         // -----------------------------------------
 
         gameField.post {
-            createInitialBugs()
+            if (isFinishing || isDestroyed) return@post
+            if (gameViewModel.initialized) {
+                gameViewModel.bugs.forEach { createBug(it) }
+                restoreSpecialBugs()
+            } else {
+                createInitialBugs()
+                gameViewModel.initialized = true
+            }
             startMovement()
             startTimer()
             startBonusTimer()
@@ -169,7 +193,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
     // Создание одного насекомого
     // -----------------------------------------
 
-    private fun createBug() {
+    private fun createBug(saved: BugSnapshot? = null) {
         if (!gameRunning) {
             return
         }
@@ -188,7 +212,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
 
         val chance = Random.nextInt(100)
 
-        val type = when {
+        val type = saved?.type ?: when {
             chance < 10 -> BugType.RARE
             chance < 45 -> BugType.FAST
             else -> BugType.NORMAL
@@ -255,11 +279,12 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         // Случайная позиция
         // -----------------------------------------
 
-        val x = Random.nextInt(maxX).toFloat()
-        val y = Random.nextInt(maxY).toFloat()
+        // Координаты модели логические: от 0 до 1.
+        val x = saved?.x ?: Random.nextFloat()
+        val y = saved?.y ?: Random.nextFloat()
 
-        bugImage.x = x
-        bugImage.y = y
+        bugImage.x = x * maxX
+        bugImage.y = y * maxY
 
         // -----------------------------------------
         // Скорость
@@ -268,18 +293,16 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         val speed =
             GameSettings.speed * speedMultiplier
 
-        var dx =
-            Random.nextFloat() * speed + 1
+        var dx = saved?.dx ?: (Random.nextFloat() * speed + 1)
 
-        var dy =
-            Random.nextFloat() * speed + 1
+        var dy = saved?.dy ?: (Random.nextFloat() * speed + 1)
 
         // Случайное направление
-        if (Random.nextBoolean()) {
+        if (saved == null && Random.nextBoolean()) {
             dx = -dx
         }
 
-        if (Random.nextBoolean()) {
+        if (saved == null && Random.nextBoolean()) {
             dy = -dy
         }
 
@@ -289,7 +312,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
 
         val bug =
             Bug(
-                id = nextBugId++,
+                id = saved?.id ?: nextBugId++,
                 imageView = bugImage,
                 x = x,
                 y = y,
@@ -354,67 +377,32 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
     // -----------------------------------------
 
     private fun moveBugs() {
-        val forceX =
-            if (tiltModeEnabled) {
-                tiltX * tiltStrength
-            } else {
-                0f
-            }
-
-        val forceY =
-            if (tiltModeEnabled) {
-                tiltY * tiltStrength
-            } else {
-                0f
-            }
-
+        // Скорость хранится в пикселях за кадр, но координаты жука — в [0, 1].
+        // На другом экране абсолютные позиции пересчитываются из модели.
+        val forceX = if (tiltModeEnabled) tiltX * tiltStrength else 0f
+        val forceY = if (tiltModeEnabled) tiltY * tiltStrength else 0f
         for (bug in bugs) {
-            // Обычное движение + влияние наклона после активации бонуса
-            bug.x += bug.dx + forceX
-            bug.y += bug.dy + forceY
+            val availableWidth = (gameField.width - bug.size).coerceAtLeast(1)
+            val availableHeight = (gameField.height - bug.size).coerceAtLeast(1)
+            bug.x += (bug.dx + forceX) / availableWidth
+            bug.y += (bug.dy + forceY) / availableHeight
 
-            // Левая граница
-            if (bug.x <= 0) {
+            if (bug.x <= 0f) {
                 bug.x = 0f
                 bug.dx = abs(bug.dx)
-            }
-
-            // Правая граница
-            if (
-                bug.x + bug.imageView.width
-                >= gameField.width
-            ) {
-                bug.x =
-                    (
-                            gameField.width -
-                                    bug.imageView.width
-                            ).toFloat()
-
+            } else if (bug.x >= 1f) {
+                bug.x = 1f
                 bug.dx = -abs(bug.dx)
             }
-
-            // Верхняя граница
-            if (bug.y <= 0) {
+            if (bug.y <= 0f) {
                 bug.y = 0f
                 bug.dy = abs(bug.dy)
-            }
-
-            // Нижняя граница
-            if (
-                bug.y + bug.imageView.height
-                >= gameField.height
-            ) {
-                bug.y =
-                    (
-                            gameField.height -
-                                    bug.imageView.height
-                            ).toFloat()
-
+            } else if (bug.y >= 1f) {
+                bug.y = 1f
                 bug.dy = -abs(bug.dy)
             }
-
-            bug.imageView.x = bug.x
-            bug.imageView.y = bug.y
+            bug.imageView.x = bug.x * availableWidth
+            bug.imageView.y = bug.y * availableHeight
         }
     }
 
@@ -423,7 +411,9 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
     // =================================================
 
     private fun startGoldenBugTimer() {
-        handler.postDelayed(goldenRunnable, goldenIntervalMs)
+        val now = SystemClock.elapsedRealtime()
+        if (gameViewModel.nextGoldenAt == 0L) gameViewModel.nextGoldenAt = now + goldenIntervalMs
+        handler.postDelayed(goldenRunnable, (gameViewModel.nextGoldenAt - now).coerceAtLeast(0L))
     }
 
     private fun createGoldenBug() {
@@ -441,8 +431,9 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
 
         val maxX = (gameField.width - size).coerceAtLeast(0)
         val maxY = (gameField.height - size).coerceAtLeast(0)
-        image.x = Random.nextInt(maxX + 1).toFloat()
-        image.y = Random.nextInt(maxY + 1).toFloat()
+        val restored = gameViewModel.goldenBug
+        image.x = restored?.let { it.x * maxX } ?: Random.nextInt(maxX + 1).toFloat()
+        image.y = restored?.let { it.y * maxY } ?: Random.nextInt(maxY + 1).toFloat()
 
         currentGoldenBug = image
         gameField.addView(image)
@@ -457,9 +448,12 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
             removeGoldenBug()
         }
 
+        goldenExpiresAt = gameViewModel.goldenBug?.expiresAt
+            ?: (SystemClock.elapsedRealtime() + goldenLifetimeMs)
+        gameViewModel.goldenBug = null
         handler.postDelayed({
             if (currentGoldenBug === image) removeGoldenBug()
-        }, goldenLifetimeMs)
+        }, (goldenExpiresAt - SystemClock.elapsedRealtime()).coerceAtLeast(0L))
     }
 
     private fun calculateGoldenBugPoints(rate: Double): Int =
@@ -476,10 +470,9 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
     // =================================================
 
     private fun startBonusTimer() {
-        handler.postDelayed(
-            bonusRunnable,
-            bonusIntervalMs
-        )
+        val now = SystemClock.elapsedRealtime()
+        if (gameViewModel.nextBonusAt == 0L) gameViewModel.nextBonusAt = now + bonusIntervalMs
+        handler.postDelayed(bonusRunnable, (gameViewModel.nextBonusAt - now).coerceAtLeast(0L))
     }
 
     // -----------------------------------------
@@ -522,11 +515,9 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
             (gameField.height - size)
                 .coerceAtLeast(1)
 
-        bonusImage.x =
-            Random.nextInt(maxX).toFloat()
-
-        bonusImage.y =
-            Random.nextInt(maxY).toFloat()
+        val restored = gameViewModel.bonus
+        bonusImage.x = restored?.let { it.x * maxX } ?: Random.nextInt(maxX).toFloat()
+        bonusImage.y = restored?.let { it.y * maxY } ?: Random.nextInt(maxY).toFloat()
 
         currentBonus = bonusImage
         gameField.addView(bonusImage)
@@ -541,13 +532,16 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         }
 
         // Если игрок не успел нажать — бонус исчезает
+        bonusExpiresAt = gameViewModel.bonus?.expiresAt
+            ?: (SystemClock.elapsedRealtime() + bonusLifetimeMs)
+        gameViewModel.bonus = null
         handler.postDelayed(
             {
                 if (currentBonus === bonusImage) {
                     removeBonus()
                 }
             },
-            bonusLifetimeMs
+            (bonusExpiresAt - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
         )
     }
 
@@ -666,7 +660,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         val player =
             MediaPlayer.create(
                 this,
-                R.raw.bug_scream
+                R.raw.m
             )
 
         screamPlayer = player
@@ -687,33 +681,27 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
     // -----------------------------------------
 
     private fun startTimer() {
-        gameStartedAt = System.currentTimeMillis()
-
-        val duration =
-            GameSettings.roundDuration *
-                    1000L
-
-        object : CountDownTimer(
-            duration,
-            1000
-        ) {
-            override fun onTick(
-                millisUntilFinished: Long
-            ) {
-                val seconds =
-                    millisUntilFinished / 1000
-
-                textTime.text =
-                    "Время: $seconds"
+        val now = SystemClock.elapsedRealtime()
+        if (roundEndsAt == 0L) {
+            roundEndsAt = now + GameSettings.roundDuration * 1000L
+            gameStartedAt = System.currentTimeMillis()
+        }
+        gameViewModel.startedAt = gameStartedAt
+        gameViewModel.endsAt = roundEndsAt
+        val ticker = object : Runnable {
+            override fun run() {
+                if (!gameRunning) return
+                val remaining = (roundEndsAt - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+                textTime.text = "Время: ${(remaining + 999L) / 1000L}"
+                if (remaining == 0L) {
+                    gameRunning = false
+                    endGame()
+                } else {
+                    handler.postDelayed(this, 200L)
+                }
             }
-
-            override fun onFinish() {
-                gameRunning = false
-                textTime.text = "Время: 0"
-
-                endGame()
-            }
-        }.start()
+        }
+        handler.post(ticker)
     }
 
     // -----------------------------------------
@@ -730,6 +718,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
     // -----------------------------------------
 
     private fun endGame() {
+        gameViewModel.initialized = false
         // Останавливаем движение и появление бонусов
         handler.removeCallbacksAndMessages(null)
 
@@ -770,6 +759,59 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
 
         startActivity(intent)
         finish()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        snapshotGame()
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onStop() {
+        snapshotGame()
+        super.onStop()
+    }
+
+    // Снимок модели. Позиции 0..1 не зависят от размера экрана.
+    private fun snapshotGame() {
+        if (!gameViewModel.initialized || !gameRunning) return
+        gameViewModel.score = score
+        gameViewModel.hits = hits
+        gameViewModel.misses = misses
+        gameViewModel.nextBugId = nextBugId
+        gameViewModel.tiltEnabled = tiltModeEnabled
+        gameViewModel.startedAt = gameStartedAt
+        gameViewModel.endsAt = roundEndsAt
+        gameViewModel.bugs.clear()
+        bugs.forEach { bug ->
+            gameViewModel.bugs.add(BugSnapshot(
+                bug.id, bug.type,
+                bug.x.coerceIn(0f, 1f),
+                bug.y.coerceIn(0f, 1f),
+                bug.dx, bug.dy
+            ))
+        }
+        gameViewModel.bonus = currentBonus?.let { image ->
+            SpriteSnapshot(
+                (image.x / (gameField.width - image.width).coerceAtLeast(1)).coerceIn(0f, 1f),
+                (image.y / (gameField.height - image.height).coerceAtLeast(1)).coerceIn(0f, 1f),
+                bonusExpiresAt
+            )
+        }
+        gameViewModel.goldenBug = currentGoldenBug?.let { image ->
+            SpriteSnapshot(
+                (image.x / (gameField.width - image.width).coerceAtLeast(1)).coerceIn(0f, 1f),
+                (image.y / (gameField.height - image.height).coerceAtLeast(1)).coerceIn(0f, 1f),
+                goldenExpiresAt
+            )
+        }
+    }
+
+    private fun restoreSpecialBugs() {
+        val now = SystemClock.elapsedRealtime()
+        if ((gameViewModel.bonus?.expiresAt ?: 0L) > now) createBonus()
+        else gameViewModel.bonus = null
+        if ((gameViewModel.goldenBug?.expiresAt ?: 0L) > now) createGoldenBug()
+        else gameViewModel.goldenBug = null
     }
 
     override fun onDestroy() {
