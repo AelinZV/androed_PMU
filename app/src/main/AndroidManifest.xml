@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".BugsApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -36,7 +37,6 @@
         <!-- Игровой экран -->
         <activity
             android:name=".GameActivity"
-            android:screenOrientation="portrait"
             android:exported="false" />
 
         <!-- Главный экран приложения -->
