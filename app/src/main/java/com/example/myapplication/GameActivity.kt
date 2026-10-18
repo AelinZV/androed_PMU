@@ -18,7 +18,6 @@ import android.widget.TextView
 import android.widget.Toast
 import kotlin.math.roundToInt
 import androidx.appcompat.app.AppCompatActivity
-import kotlin.math.abs
 import kotlin.random.Random
 
 class GameActivity : AppCompatActivity(), SensorEventListener {
@@ -154,7 +153,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         gameField.setOnClickListener {
             if (gameRunning) {
                 misses++
-                score -= 5
+                score = GameScoreCalculator.afterMiss(score)
                 updateScore()
             }
         }
@@ -225,7 +224,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
         val imageResource: Int
         val size: Int
         val speedMultiplier: Float
-        val points: Int
+        val points = GameScoreCalculator.pointsForBug(type)
 
         when (type) {
             // Обычный тип
@@ -233,7 +232,6 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
                 imageResource = R.drawable.phcel
                 size = 100
                 speedMultiplier = 1.0f
-                points = 10
             }
 
             // Быстрый тип
@@ -241,7 +239,6 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
                 imageResource = R.drawable.skarabeychik
                 size = 80
                 speedMultiplier = 1.8f
-                points = 20
             }
 
             // Редкий тип
@@ -249,7 +246,6 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
                 imageResource = R.drawable.pawuchok
                 size = 120
                 speedMultiplier = 1.2f
-                points = 50
             }
         }
 
@@ -336,7 +332,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
             }
 
             hits++
-            score += bug.points
+            score = GameScoreCalculator.afterHit(score, bug.points)
             updateScore()
 
             removeBug(bug)
@@ -377,6 +373,7 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
     // -----------------------------------------
 
     private fun moveBugs() {
+<<<<<<< HEAD
         // Скорость хранится в пикселях за кадр, но координаты жука — в [0, 1].
         // На другом экране абсолютные позиции пересчитываются из модели.
         val forceX = if (tiltModeEnabled) tiltX * tiltStrength else 0f
@@ -401,6 +398,32 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
                 bug.y = 1f
                 bug.dy = -abs(bug.dy)
             }
+=======
+        val forceX = if (tiltModeEnabled) tiltX * tiltStrength else 0f
+        val forceY = if (tiltModeEnabled) tiltY * tiltStrength else 0f
+
+        for (bug in bugs) {
+            val availableWidth = (gameField.width - bug.size).coerceAtLeast(1)
+            val availableHeight = (gameField.height - bug.size).coerceAtLeast(1)
+
+            // Вся математика перемещения находится в BugMovement.
+            val next = BugMovement.move(
+                x = bug.x,
+                y = bug.y,
+                dx = bug.dx,
+                dy = bug.dy,
+                availableWidth = availableWidth,
+                availableHeight = availableHeight,
+                forceX = forceX,
+                forceY = forceY
+            )
+            bug.x = next.x
+            bug.y = next.y
+            bug.dx = next.dx
+            bug.dy = next.dy
+
+            // Activity отвечает только за отображение рассчитанной позиции.
+>>>>>>> 573315b (Подсчёт очков)
             bug.imageView.x = bug.x * availableWidth
             bug.imageView.y = bug.y * availableHeight
         }
@@ -440,8 +463,8 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
 
         image.setOnClickListener {
             if (!gameRunning || currentGoldenBug !== image) return@setOnClickListener
-            val points = calculateGoldenBugPoints(rate)
-            score += points
+            val points = GameScoreCalculator.pointsForGoldenBug(rate)
+            score = GameScoreCalculator.afterHit(score, points)
             hits++
             updateScore()
             Toast.makeText(this, "Золотой жук: +$points очков", Toast.LENGTH_SHORT).show()
@@ -455,9 +478,6 @@ class GameActivity : AppCompatActivity(), SensorEventListener {
             if (currentGoldenBug === image) removeGoldenBug()
         }, (goldenExpiresAt - SystemClock.elapsedRealtime()).coerceAtLeast(0L))
     }
-
-    private fun calculateGoldenBugPoints(rate: Double): Int =
-        (rate / 100.0).roundToInt().coerceAtLeast(1)
 
     private fun removeGoldenBug() {
         val image = currentGoldenBug ?: return
