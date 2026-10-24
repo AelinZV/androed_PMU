@@ -5,6 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/** Один завершённый раунд. levelId == null означает классическую игру. */
 @Entity(
     tableName = "game_results",
     foreignKeys = [
@@ -15,9 +16,7 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [
-        Index(value = ["playerId"])
-    ]
+    indices = [Index(value = ["playerId"]), Index(value = ["levelId"])]
 )
 data class GameResultEntity(
     val playerId: Long,
@@ -27,8 +26,10 @@ data class GameResultEntity(
     val accuracy: Double,
     val difficulty: String,
     val playedAt: Long,
-    val durationSeconds: Int,
-
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0
+    val durationSeconds: Int = 0,
+    /** id > 0 — сохранённый уровень; 0 — уровень из предпросмотра без сохранения. */
+    val levelId: Long? = null,
+    /** Снимок названия, чтобы рекорды остались после удаления уровня. */
+    val levelName: String? = null,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0
 )
