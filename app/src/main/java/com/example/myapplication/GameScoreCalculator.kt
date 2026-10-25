@@ -10,6 +10,7 @@ object GameScoreCalculator {
         BugType.NORMAL -> 10
         BugType.FAST -> 20
         BugType.RARE -> 50
+        BugType.ULTRA_RARE -> 100
     }
 
     /** Золотой жук: одна сотая цены грамма золота ЦБ в рублях. */
