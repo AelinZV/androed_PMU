@@ -9,7 +9,8 @@ data class BugSnapshot(
     val x: Float,
     val y: Float,
     val dx: Float,
-    val dy: Float
+    val dy: Float,
+    val seasonState: SeasonBugState = SeasonBugState()
 )
 
 data class SpriteSnapshot(val x: Float, val y: Float, val expiresAt: Long)
@@ -25,6 +26,8 @@ class GameViewModel : ViewModel() {
     var tiltEnabled = false
     var nextBonusAt = 0L
     var nextGoldenAt = 0L
+    // Продолжение фоновой музыки после поворота игрового экрана.
+    var seasonAudioPositionMs = 0
     val bugs = mutableListOf<BugSnapshot>()
     var bonus: SpriteSnapshot? = null
     var goldenBug: SpriteSnapshot? = null

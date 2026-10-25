@@ -27,6 +27,9 @@
                 android:resource="@xml/gold_widget_info" />
         </receiver>
 
+        <activity android:name=".LevelEditorActivity" android:exported="false" />
+        <activity android:name=".LevelPreviewActivity" android:exported="false" />
+
         <!-- Экран результатов игры -->
         <activity
             android:name=".GameResultActivity"
