@@ -7,117 +7,50 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.util.Locale
 
+/** Экран результата: сохраняет как обычные игры, так и пользовательские уровни. */
 class GameResultActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContentView(R.layout.activity_game_result)
 
-        val textResultScore =
-            findViewById<TextView>(R.id.textResultScore)
+        val textScore = findViewById<TextView>(R.id.textResultScore)
+        val textHits = findViewById<TextView>(R.id.textHits)
+        val textMisses = findViewById<TextView>(R.id.textMisses)
+        val textAccuracy = findViewById<TextView>(R.id.textAccuracy)
+        val textSaveStatus = findViewById<TextView>(R.id.textSaveStatus)
+        val buttonRestart = findViewById<Button>(R.id.buttonRestart)
+        val buttonBack = findViewById<Button>(R.id.buttonBack)
 
-        val textHits =
-            findViewById<TextView>(R.id.textHits)
+        val score = intent.getIntExtra("SCORE", 0)
+        val hits = intent.getIntExtra("HITS", 0)
+        val misses = intent.getIntExtra("MISSES", 0)
+        val durationSeconds = intent.getIntExtra("DURATION_SECONDS", 0)
+        val level = LevelPreviewActivity.readLevel(intent)
+        val total = hits + misses
+        val accuracy = if (total > 0) hits * 100.0 / total else 0.0
 
-        val textMisses =
-            findViewById<TextView>(R.id.textMisses)
+        textScore.text = "Очки: $score"
+        textHits.text = "Попадания: $hits"
+        textMisses.text = "Промахи: $misses"
+        textAccuracy.text = String.format(Locale.getDefault(), "Точность: %.1f%%", accuracy)
 
-        val textAccuracy =
-            findViewById<TextView>(R.id.textAccuracy)
-
-        val textSaveStatus =
-            findViewById<TextView>(R.id.textSaveStatus)
-
-        val buttonRestart =
-            findViewById<Button>(R.id.buttonRestart)
-
-        val buttonBack =
-            findViewById<Button>(R.id.buttonBack)
-
-
-        // Получаем результаты из GameActivity.
-        val score =
-            intent.getIntExtra("SCORE", 0)
-
-        val hits =
-            intent.getIntExtra("HITS", 0)
-
-        val misses =
-            intent.getIntExtra("MISSES", 0)
-
-        val durationSeconds =
-            intent.getIntExtra("DURATION_SECONDS", 0)
-
-
-        // Рассчитываем точность.
-        val totalClicks =
-            hits + misses
-
-        val accuracy =
-            if (totalClicks > 0) {
-                hits * 100.0 / totalClicks
-            } else {
-                0.0
-            }
-
-
-        // Выводим статистику.
-        textResultScore.text =
-            "Очки: $score"
-
-        textHits.text =
-            "Попадания: $hits"
-
-        textMisses.text =
-            "Промахи: $misses"
-
-        textAccuracy.text =
-            String.format(
-                Locale.getDefault(),
-                "Точность: %.1f%%",
-                accuracy
-            )
-
-
-        // ЛР №5: сохраняем результат в Room только для выбранного игрока.
-        // savedInstanceState == null защищает от повторной записи при пересоздании Activity.
+        // Одна запись на раунд. После поворота экрана повторно не записываем.
         if (savedInstanceState == null) {
-            saveResult(
-                score = score,
-                hits = hits,
-                misses = misses,
-                accuracy = accuracy,
-                durationSeconds = durationSeconds,
-                textSaveStatus = textSaveStatus
-            )
+            saveResult(score, hits, misses, accuracy, durationSeconds, level, textSaveStatus)
+        } else {
+            textSaveStatus.text = "Результат этого раунда уже обработан"
         }
 
-
-        // Повторная игра — выбранный игрок остаётся активным.
         buttonRestart.setOnClickListener {
-
-            val restartIntent =
-                Intent(
-                    this,
-                    GameActivity::class.java
-                )
-
-            startActivity(restartIntent)
+            val replay = Intent(this, GameActivity::class.java)
+            // Важное исправление: не теряем уровень при повторной игре.
+            level?.let { LevelPreviewActivity.putLevel(replay, it) }
+            startActivity(replay)
             finish()
         }
-
-
-        // Возвращаемся на главный экран приложения.
-        buttonBack.setOnClickListener {
-            finish()
-        }
+        buttonBack.setOnClickListener { finish() }
     }
-
-
-    // =================================================
-    // ЛР №5. Сохранение результата игры в Room
-    // =================================================
 
     private fun saveResult(
         score: Int,
@@ -125,45 +58,40 @@ class GameResultActivity : AppCompatActivity() {
         misses: Int,
         accuracy: Double,
         durationSeconds: Int,
-        textSaveStatus: TextView
+        level: LevelConfig?,
+        status: TextView
     ) {
-
-        val playerId =
-            PlayerSession.playerId
-
-        // Если игра была запущена без регистрации,
-        // результат в базу не записываем.
+        val playerId = PlayerSession.playerId
         if (playerId == null) {
-            textSaveStatus.text =
-                "Результат не сохранён: игрок не выбран"
+            status.text = "Результат не сохранён: сначала выберите игрока"
             return
         }
 
-        val result =
-            GameResultEntity(
-                playerId,
-                score,
-                hits,
-                misses,
-                accuracy,
-                PlayerSession.difficulty,
-                System.currentTimeMillis(),
-                durationSeconds
-            )
-
-        val database =
-            AppDatabase.getInstance(applicationContext)
-
-        textSaveStatus.text =
-            "Сохранение результата..."
-
+        val record = GameResultEntity(
+            playerId = playerId,
+            score = score,
+            hits = hits,
+            misses = misses,
+            accuracy = accuracy,
+            difficulty = PlayerSession.difficulty,
+            playedAt = System.currentTimeMillis(),
+            durationSeconds = durationSeconds.coerceAtLeast(0),
+            levelId = level?.id,
+            levelName = level?.name
+        )
+        status.text = "Сохранение результата..."
         Thread {
-
-            database.gameResultDao().insert(result)
-
+            val error = runCatching {
+                AppDatabase.getInstance(applicationContext).gameResultDao().insert(record)
+            }.exceptionOrNull()
             runOnUiThread {
-                textSaveStatus.text =
-                    "Результат сохранён: ${PlayerSession.fullName}"
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                status.text = if (error == null) {
+                    if (level == null) "Результат обычной игры сохранён"
+                    else "Результат уровня «${level.name}» сохранён"
+                } else {
+                    "Ошибка сохранения: ${error.localizedMessage ?: "неизвестная ошибка"}"
+                }
             }
         }.start()
     }
