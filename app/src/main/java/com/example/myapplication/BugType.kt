@@ -1,7 +1,9 @@
 package com.example.myapplication
 
+/** Типы жуков: три из лабораторных + отдельный ультраредкий для курсовой. */
 enum class BugType {
-    NORMAL,     // обычный муравей
-    FAST,       // быстрый жук
-    RARE        // редкий паук
+    NORMAL,
+    FAST,
+    RARE,
+    ULTRA_RARE
 }
